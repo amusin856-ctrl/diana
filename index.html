@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>const queen = "солнышко"; // ♥</title>
+    <!-- Подключаем Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключаем моноширинный шрифт программиста JetBrains Mono и современный Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Базовая настройка в глубоком черном и неоново-красном стиле */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050505;
+            background-image:
+                radial-gradient(circle at 50% 44%, rgba(80, 0, 20, 0.18), transparent 28%),
+                radial-gradient(circle at 50% 45%, #1a0207 0%, #090103 55%, #030303 100%);
+            font-family: 'JetBrains Mono', monospace;
+            color: #ffffff;
+        }
+
+        .depth-field,
+        .depth-grid,
+        .vignette {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .depth-field {
+            z-index: 1;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 48%, transparent 0 18%, rgba(255, 0, 60, 0.025) 42%, transparent 62%);
+        }
+
+        .depth-field {
+            transform: translate3d(var(--depth-x-back, 0px), var(--depth-y-back, 0px), 0) scale(1.035);
+            transition: transform 0.18s linear;
+        }
+
+        .depth-grid {
+            transform:
+                perspective(700px)
+                rotateX(var(--grid-rotate-x, 68deg))
+                rotateY(var(--grid-rotate-y, 0deg))
+                translateY(58%);
+        }
+
+        .depth-field::before,
+        .depth-field::after {
+            content: "";
+            position: absolute;
+            width: 42vmax;
+            height: 42vmax;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.14;
+            background: #c00031;
+            animation: auraDrift 12s ease-in-out infinite alternate;
+        }
+
+        .depth-field::before {
+            left: -28vmax;
+            top: 8%;
+        }
+
+        .depth-field::after {
+            right: -30vmax;
+            bottom: -5%;
+            animation-delay: -6s;
+        }
+
+        .depth-grid {
+            z-index: 2;
+            opacity: 0.11;
+            transform: perspective(700px) rotateX(68deg) translateY(58%);
+            transform-origin: 50% 100%;
+            background-image:
+                linear-gradient(rgba(255, 30, 66, 0.28) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 30, 66, 0.28) 1px, transparent 1px);
+            background-size: 46px 46px;
+            mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent 72%);
+            animation: gridPulse 7s ease-in-out infinite;
+        }
+
+        .vignette {
+            z-index: 7;
+            box-shadow:
+                inset 0 0 140px rgba(0, 0, 0, 0.9),
+                inset 0 0 38px rgba(255, 0, 60, 0.035);
+        }
+
+        /* Тонкая CRT-сетка (scanlines) поверх фона для атмосферы терминала */
+        .scanlines {
+            position: fixed;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.35) 50%
+            );
+            background-size: 100% 4px;
+            opacity: 0.55;
+        }
+
+        /* Canvas на весь экран */
+        #cyberCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            touch-action: none;
+        }
+
+        /* Центральный передний план с именем */
+        .hero-container {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            pointer-events: none; /* Пропускаем все клики к сердечкам */
+            padding: 1rem;
+            transform-style: preserve-3d;
+            perspective: 900px;
+        }
+
+        /* Красное кибер-свечение за именем */
+        .crimson-aura {
+            position: absolute;
+            width: clamp(280px, 60vw, 560px);
+            height: clamp(220px, 45vw, 400px);
+            background: radial-gradient(circle, rgba(255, 0, 60, 0.28) 0%, rgba(180, 0, 35, 0.1) 42%, transparent 72%);
+            border-radius: 50%;
+            filter: blur(35px);
+            animation: pulseCore 4s ease-in-out infinite alternate;
+            transform: translate3d(var(--tilt-x-aura, 0px), var(--tilt-y-aura, 0px), -40px);
+        }
+
+        /* Главный заголовок — нежное обращение */
+        .diana-cyber-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 900;
+            font-size: clamp(4.2rem, 16vw, 10.5rem);
+            line-height: 1;
+            letter-spacing: -0.02em;
+            position: relative;
+            color: #ffffff;
+            text-shadow: 
+                0 0 18px rgba(255, 0, 60, 0.85),
+                0 0 42px rgba(255, 30, 66, 0.55),
+                0 0 80px rgba(220, 0, 45, 0.35),
+                0 16px 0 rgba(90, 0, 22, 0.12),
+                0 30px 28px rgba(0, 0, 0, 0.62);
+            animation: subtleGlitch 6s infinite;
+            transform-style: preserve-3d;
+            transition: transform 0.12s linear;
+            will-change: transform;
+            transform:
+                translate3d(var(--tilt-x-title, 0px), var(--tilt-y-title, 0px), 70px)
+                rotateX(var(--tilt-rotate-x, 0deg))
+                rotateY(var(--tilt-rotate-y, 0deg));
+        }
+
+        .hero-label,
+        .hero-status {
+            transform: translate3d(
+                var(--tilt-x-label, 0px),
+                var(--tilt-y-label, 0px),
+                45px
+            );
+            transition: transform 0.12s linear;
+        }
+
+        .fish-eye-target {
+            --lens-x: 0px;
+            --lens-y: 0px;
+            --lens-scale: 1;
+            --lens-brightness: 1;
+            --lens-hue: 0deg;
+            filter:
+                brightness(var(--lens-brightness))
+                hue-rotate(var(--lens-hue))
+                drop-shadow(0 0 12px rgba(255, 30, 66, 0.12));
+            transform:
+                translate3d(var(--lens-x), var(--lens-y), 0)
+                scale(var(--lens-scale));
+            transition: filter 0.08s linear;
+            will-change: transform, filter;
+        }
+
+        .diana-cyber-title.fish-eye-target {
+            transform:
+                translate3d(var(--lens-x), var(--lens-y), 70px)
+                scale(var(--lens-scale))
+                rotateX(var(--tilt-rotate-x, 0deg))
+                rotateY(var(--tilt-rotate-y, 0deg));
+        }
+
+        .hero-label.fish-eye-target,
+        .hero-status.fish-eye-target {
+            transform:
+                translate3d(
+                    var(--lens-x),
+                    var(--lens-y),
+                    45px
+                )
+                scale(var(--lens-scale));
+        }
+
+        /* Декоративные скобки вокруг имени */
+        .code-bracket {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 400;
+            color: #ff1e42;
+            text-shadow: 0 0 15px rgba(255, 30, 66, 0.8);
+            font-size: clamp(3rem, 12vw, 8rem);
+            vertical-align: middle;
+        }
+
+        /* Модальное окно в стиле хакерского / кибер-терминала */
+        .terminal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.25rem;
+            background: rgba(3, 3, 3, 0.72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .terminal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .terminal-card {
+            position: relative;
+            width: 100%;
+            max-width: 470px;
+            background: linear-gradient(160deg, rgba(18, 4, 8, 0.94) 0%, rgba(8, 2, 4, 0.97) 100%);
+            border: 1px solid rgba(255, 30, 66, 0.55);
+            border-radius: 16px;
+            box-shadow: 
+                0 25px 60px -10px rgba(0, 0, 0, 0.9),
+                0 0 30px rgba(255, 0, 60, 0.25),
+                inset 0 0 25px rgba(255, 0, 60, 0.08);
+            overflow: hidden;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .terminal-backdrop.active .terminal-card {
+            transform: scale(1) translateY(0);
+        }
+
+        /* Шапка окна терминала */
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 0, 60, 0.12);
+            border-bottom: 1px solid rgba(255, 30, 66, 0.3);
+        }
+
+        /* Мигающий курсор терминала */
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 1.1em;
+            background-color: #ff1e42;
+            vertical-align: text-bottom;
+            margin-left: 4px;
+            animation: blink 1s step-end infinite;
+        }
+
+        /* Анимации */
+        @keyframes pulseCore {
+            0% { transform: scale(0.92); opacity: 0.75; }
+            100% { transform: scale(1.08); opacity: 1; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        @keyframes subtleGlitch {
+            0%, 92%, 100% {
+                transform: translate(0, 0);
+                text-shadow: 0 0 18px rgba(255, 0, 60, 0.85), 0 0 42px rgba(255, 30, 66, 0.55);
+            }
+            93% {
+                transform: translate(-2px, 1px);
+                text-shadow: 3px 0 #ff003c, -3px 0 #7f001d;
+            }
+            94% {
+                transform: translate(2px, -1px);
+                text-shadow: -3px 0 #ff003c, 3px 0 #ffffff;
+            }
+            95% {
+                transform: translate(0, 0);
+            }
+        }
+
+        @keyframes auraDrift {
+            0% { transform: translate3d(-3%, -2%, 0) scale(0.85); }
+            100% { transform: translate3d(8%, 7%, 0) scale(1.18); }
+        }
+
+        @keyframes gridPulse {
+            0%, 100% { opacity: 0.07; background-position: 0 0; }
+            50% { opacity: 0.14; background-position: 0 23px; }
+        }
+
+        @media (max-width: 640px) {
+            .depth-field {
+                transform: translate3d(var(--depth-x-back, 0px), var(--depth-y-back, 0px), 0) scale(1.08);
+            }
+
+            .depth-grid {
+                background-size: 34px 34px;
+                opacity: 0.08;
+            }
+
+            .hero-container {
+                padding:
+                    max(4.25rem, env(safe-area-inset-top))
+                    0.75rem
+                    max(4.25rem, env(safe-area-inset-bottom));
+            }
+
+            .crimson-aura {
+                width: min(78vw, 300px);
+                height: min(48vw, 220px);
+                filter: blur(24px);
+            }
+
+            .diana-cyber-title {
+                font-size: clamp(3.1rem, 18vw, 5.4rem);
+                letter-spacing: -0.04em;
+                text-shadow:
+                    0 0 12px rgba(255, 0, 60, 0.9),
+                    0 0 28px rgba(255, 30, 66, 0.48),
+                    0 15px 22px rgba(0, 0, 0, 0.72);
+            }
+
+            .code-bracket {
+                font-size: clamp(2.2rem, 10vw, 3.6rem);
+            }
+
+            .hero-label {
+                max-width: calc(100vw - 2rem);
+                font-size: 0.68rem;
+                line-height: 1.2;
+                margin-bottom: 0.45rem !important;
+                white-space: nowrap;
+            }
+
+            .hero-status {
+                max-width: calc(100vw - 2rem);
+                font-size: 0.68rem;
+                margin-top: 0.55rem !important;
+                white-space: nowrap;
+            }
+
+            header.fixed {
+                padding:
+                    max(0.55rem, env(safe-area-inset-top))
+                    0.55rem
+                    0.55rem;
+                gap: 0.35rem;
+            }
+
+            header.fixed > div {
+                min-height: 32px;
+                padding: 0.4rem 0.55rem;
+                font-size: 0.62rem;
+            }
+
+            footer.fixed {
+                bottom: max(0.45rem, env(safe-area-inset-bottom));
+                padding: 0 0.55rem;
+            }
+
+            footer.fixed > div {
+                max-width: 370px;
+                width: 100%;
+                padding: 0.5rem 0.65rem;
+                font-size: 0.62rem;
+                line-height: 1.35;
+            }
+
+            .terminal-backdrop {
+                padding:
+                    max(0.75rem, env(safe-area-inset-top))
+                    0.75rem
+                    max(0.75rem, env(safe-area-inset-bottom));
+            }
+
+            .terminal-card {
+                max-height: calc(100dvh - 1.5rem);
+                border-radius: 12px;
+            }
+
+            .terminal-header {
+                padding: 0.62rem 0.75rem;
+            }
+
+            .terminal-header #terminalTabTitle {
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .terminal-card .p-6,
+            .terminal-card .sm\:p-7 {
+                padding: 1.1rem;
+            }
+
+            .terminal-card #complimentText {
+                font-size: 1rem;
+                line-height: 1.55;
+            }
+
+            #continueBtn {
+                min-height: 48px;
+                padding: 0.8rem 1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .diana-cyber-title {
+                font-size: 3.15rem;
+            }
+
+            .code-bracket {
+                font-size: 2.1rem;
+            }
+
+            header.fixed > div:first-child {
+                max-width: 175px;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .hero-container {
+                transform: scale(0.88);
+            }
+
+            .terminal-card {
+                max-height: calc(100dvh - 1rem);
+                overflow-y: auto;
+            }
+
+            .terminal-card [class*="p-6"] {
+                padding-top: 0.8rem;
+                padding-bottom: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Слои глубины и перспективы -->
+    <div class="depth-field"></div>
+    <div class="depth-grid"></div>
+
+    <!-- Сканлайны монитора -->
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- Верхний HUD интерфейс программиста -->
+    <header class="fixed top-0 left-0 right-0 z-20 flex flex-wrap justify-between items-center gap-2 p-4 sm:p-6 pointer-events-none">
+        <div class="fish-eye-target px-3.5 py-1.5 rounded-lg bg-black/75 backdrop-blur-md border border-rose-500/35 text-xs sm:text-sm text-rose-200 shadow-[0_0_15px_rgba(255,0,60,0.15)] flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-[#ff1e42] animate-ping"></span>
+            <span class="text-rose-400">SYS.STATUS:</span>
+            <span class="text-white font-medium">IN_LOVE</span>
+        </div>
+
+        <div id="counterBadge" class="fish-eye-target pointer-events-auto px-3.5 py-1.5 rounded-lg bg-black/75 backdrop-blur-md border border-rose-500/45 text-xs sm:text-sm font-medium text-rose-100 shadow-[0_0_15px_rgba(255,0,60,0.2)] flex items-center gap-2 transition-transform duration-200">
+            <span class="text-[#ff1e42] font-bold">&lt;♥/&gt;</span>
+            <span class="hidden sm:inline text-rose-300/80">COMPLIMENTS_UNLOCKED:</span>
+            <span class="sm:hidden text-rose-300/80">UNLOCKED:</span>
+            <span><strong id="openedCount" class="text-[#ff1e42]">0</strong>/<span id="totalCount">30</span></span>
+        </div>
+    </header>
+
+    <!-- Центральный передний план с нежным обращением -->
+    <main class="hero-container">
+        <div class="crimson-aura"></div>
+        
+        <div class="fish-eye-target hero-label text-xs sm:text-base md:text-lg text-rose-400/90 mb-2 sm:mb-3 tracking-wide font-medium bg-black/50 px-3 py-1 rounded border border-rose-500/20">
+            <span class="text-rose-500">const</span> <span class="text-white">perfection</span> = <span class="text-[#ff1e42]">"Диана"</span>;
+        </div>
+
+        <h1 class="fish-eye-target diana-cyber-title flex items-center justify-center">
+            <span class="code-bracket mr-1 sm:mr-3">&lt;</span>Диана<span class="code-bracket ml-1 sm:ml-3">/&gt;</span>
+        </h1>
+
+        <div class="fish-eye-target hero-status mt-3 sm:mt-4 text-xs sm:text-sm text-rose-300/80 tracking-wider bg-black/50 px-3.5 py-1 rounded border border-rose-500/20">
+            <span class="text-rose-500">while</span>(alive) { <span class="text-white">admire(diana)</span>; }<span class="cursor-blink"></span>
+        </div>
+    </main>
+
+    <!-- Интерактивный Canvas (матрица кода + падающие красные сердечки + таргетинг) -->
+    <canvas id="cyberCanvas"></canvas>
+
+    <!-- Нижняя строка состояния -->
+    <footer class="fixed bottom-4 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none">
+        <div class="fish-eye-target px-4 py-2 rounded-lg bg-black/80 backdrop-blur-md border border-rose-500/30 text-xs sm:text-sm text-rose-200/90 text-center shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+            <span class="text-[#ff1e42] font-bold mr-1">&gt;_</span> // нажми на падающее сердечко
+        </div>
+    </footer>
+
+    <!-- Терминальное модальное окно с комплиментом -->
+    <div id="complimentModal" class="terminal-backdrop" role="dialog" aria-modal="true">
+        <div class="terminal-card" id="terminalCard">
+            <!-- Шапка окна терминала -->
+            <div class="terminal-header">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-[#ff1e42] shadow-[0_0_8px_#ff1e42]"></span>
+                    <span class="w-3 h-3 rounded-full bg-rose-900/80 border border-rose-500/40"></span>
+                    <span class="w-3 h-3 rounded-full bg-rose-950/80 border border-rose-500/30"></span>
+                    <span id="terminalTabTitle" class="ml-2 text-xs text-rose-300/90 font-medium tracking-wide">
+                        compliment_01.exe
+                    </span>
+                </div>
+                <button id="closeModalBtn" aria-label="Закрыть" class="text-xs px-2 py-0.5 rounded bg-rose-950/80 hover:bg-[#ff1e42] text-rose-200 hover:text-white border border-rose-500/40 transition-colors cursor-pointer">
+                    [X]
+                </button>
+            </div>
+
+            <!-- Тело терминала -->
+            <div class="p-6 sm:p-7 text-left">
+                <div class="text-xs text-rose-400/90 mb-3 flex items-center justify-between">
+                    <span>&gt; executing <span class="text-white">getCompliment("солнышко")</span>...</span>
+                    <span class="text-emerald-400 font-bold">[200 OK]</span>
+                </div>
+
+                <!-- Блок с текстом комплимента -->
+                <div class="p-4 sm:p-5 rounded-xl bg-black/70 border border-rose-500/30 mb-6 relative">
+                    <div class="text-[11px] text-rose-500/70 mb-1.5">/* output */</div>
+                    <p id="complimentText" class="text-base sm:text-lg font-sans font-medium leading-relaxed text-white">
+                        Я могу смотреть на твою улыбку бесконечно — она всегда делает мой день лучше.
+                    </p>
+                </div>
+
+                <!-- Кнопка продолжить -->
+                <button id="continueBtn" class="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-[#d90429] via-[#ff003c] to-[#b9002b] hover:from-[#ff1e42] hover:to-[#d90429] active:scale-[0.98] text-white font-semibold text-xs sm:text-sm tracking-wider uppercase shadow-[0_0_25px_rgba(255,0,60,0.45)] border border-rose-400/40 transition-all cursor-pointer flex items-center justify-center gap-2">
+                    <span>Поймать следующее сердце</span>
+                    <span class="text-base">♥</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Тридцать личных фраз — живые и искренние.
+         */
+        const COMPLIMENTS = [
+            "Дианчик, твоя улыбка мне безумно нравится — рядом с тобой даже обычный день почему-то становится особенным.",
+            "Мне очень импонирует в тебе сочетание красоты, ума и лёгкости. От этого ты кажешься ещё желаннее.",
+            "Пупс, у тебя такие глаза, что иногда хочется просто смотреть на тебя молча и никуда не торопиться.",
+            "Ты не похожа ни на кого. В тебе есть что-то своё, настоящее — и это притягивает сильнее слов.",
+            "Солнышко, мне нравится твой смех. Особенно когда он искренний — тогда хочется услышать его ещё раз.",
+            "У тебя отличный вкус и свой стиль. Ты умеешь выглядеть красиво, не делая из этого целое шоу.",
+            "С тобой время проходит незаметно. Мы могли бы просто болтать часами и я бы не устал.",
+            "Прелесть моя, рядом с тобой чувствуешь покой. Наверное, это и есть самое ценное.",
+            "Ты заряжаешь меня своим настроением — в хорошем смысле. После общения с тобой хочется жить ярче.",
+            "Ты нежная, но совсем не слабая. В тебе чувствуется характер, и мне это очень нравится.",
+            "Принцесска, мне нравится смотреть, когда ты увлечена чем-то. У тебя загораются глаза и появляется искренний блеск.",
+            "Милашка, твой голос приятно слушать. Даже обычная фраза от тебя почему-то становится особенной.",
+            "Ты не притворяешься кем-то другим. В этом вся твоя ценность — ты естественная и настоящая.",
+            "Золотце, из обычного момента рядом с тобой может получиться воспоминание, которое хочется сохранить.",
+            "У тебя очень красивое обаяние. Оно чувствуется не только в внешности, но и в каждом жесте.",
+            "Ты замечаешь больше, чем кажется на первый взгляд. И умеешь поддержать так, чтобы человек правда почувствовал тепло.",
+            "Когда ты серьёзная или немного задумчивая, ты выглядишь не менее красиво.",
+            "Мне интересно узнавать тебя всё больше. Даже обычные наши разговоры для меня не проходят даром.",
+            "Ты красивая снаружи, но мне больше всего нравится то, что ты внутри.",
+            "Ты вдохновляешь меня просто тем, что веришь в меня и делаешь жизнь теплее.",
+            "Твои объятия — место, где хочется задержаться чуть дольше.",
+            "У тебя есть собственная аура. Люди к тебе тянутся не случайно.",
+            "Красоточка, мне нравится, когда ты радуешься мелочам. Это делает тебя ещё милее.",
+            "Ты стала той самой улыбкой, которую я хочу увидеть.",
+            "В тебе есть нежность и сила одновременно. Это редкое и очень притягательное сочетание.",
+            "Даже маленькие детали в тебе важны для меня — взгляд, улыбка, лёгкое движение.",
+            "Прелесть моя, просто потому что ты есть в моей жизни — всё вокруг кажется красивее.",
+            "С тобой всё по-настоящему. Ни фальши, ни лишнего — только хорошая и милая ты.",
+            "Не знаю, как ещё сказать: я рад, что ты появилась в моей жизни.",
+            "Красоточка, ты для меня особенная. Я точно не хочу терять то хорошее, что есть между нами."
+        ];
+
+        // Инициализация Canvas
+        const canvas = document.getElementById('cyberCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Элементы HUD и модального окна
+        const modal = document.getElementById('complimentModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const continueBtn = document.getElementById('continueBtn');
+        const terminalTabTitle = document.getElementById('terminalTabTitle');
+        const complimentTextEl = document.getElementById('complimentText');
+        const openedCountEl = document.getElementById('openedCount');
+        const totalCountEl = document.getElementById('totalCount');
+        const counterBadge = document.getElementById('counterBadge');
+
+        totalCountEl.textContent = COMPLIMENTS.length;
+
+        // Размеры экрана и DPI
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        // Очередь индексов для показа комплиментов без повторов
+        let availableIndices = [];
+        let openedCount = 0;
+        let isModalOpen = false;
+        let hoveredHeart = null;
+
+        // Позиция курсора / касания
+        const pointer = {
+            x: -1000,
+            y: -1000,
+            active: false,
+            tiltX: 0,
+            tiltY: 0
+        };
+
+        let depthDust = [];
+        let shockRings = [];
+
+        function initDepthDust() {
+            const count = width < 640 ? 55 : 90;
+            depthDust = [];
+            for (let i = 0; i < count; i++) {
+                depthDust.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    depth: Math.random() * 0.9 + 0.1,
+                    size: Math.random() * 1.4 + 0.35,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: Math.random() * 0.14 + 0.03
+                });
+            }
+        }
+
+        function drawDepthDust() {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (const dust of depthDust) {
+                dust.phase += dust.speed * 0.025;
+                dust.y -= dust.speed * dust.depth;
+                if (dust.y < -10) {
+                    dust.y = height + 10;
+                    dust.x = Math.random() * width;
+                }
+
+                const parallaxX = pointer.active ? (pointer.x - width * 0.5) * dust.depth * -0.012 : 0;
+                const parallaxY = pointer.active ? (pointer.y - height * 0.5) * dust.depth * -0.008 : 0;
+                const alpha = (0.12 + Math.sin(dust.phase) * 0.08) * dust.depth;
+
+                ctx.fillStyle = `rgba(255, 75, 105, ${Math.max(0.04, alpha)})`;
+                ctx.beginPath();
+                let drawX = dust.x + parallaxX;
+                let drawY = dust.y + parallaxY;
+                ctx.arc(drawX, drawY, dust.size * dust.depth, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Настройка матрицы программистского кода на фоне
+         */
+        const CODE_TOKENS = [
+            '0', '1', '0', '1', '0xFF', '0x01', 'love()', 'diana()', 
+            'true', '&&', '||', '=>', '{ }', '<♥>', 'return', 'const', 
+            'if(you)', 'while(1)', '0101', '1010', '♥', 'sudo', 'root', '∞'
+        ];
+        let matrixColumns = [];
+        const matrixFontSize = 14;
+
+        function initMatrix() {
+            const cols = Math.ceil(width / 26);
+            matrixColumns = [];
+            for (let i = 0; i < cols; i++) {
+                matrixColumns.push({
+                    x: i * 26 + 8,
+                    y: Math.random() * height,
+                    speed: Math.random() * 1.4 + 0.6,
+                    token: CODE_TOKENS[Math.floor(Math.random() * CODE_TOKENS.length)],
+                    changeTimer: Math.floor(Math.random() * 40),
+                    opacity: Math.random() * 0.22 + 0.06
+                });
+            }
+        }
+
+        function updateAndDrawMatrix() {
+            ctx.save();
+            ctx.translate(pointer.tiltX * 6, pointer.tiltY * 4);
+            ctx.font = `500 ${matrixFontSize}px "JetBrains Mono", monospace`;
+            ctx.textAlign = 'center';
+
+            for (let i = 0; i < matrixColumns.length; i++) {
+                const col = matrixColumns[i];
+                col.y += col.speed;
+                col.changeTimer++;
+
+                if (col.changeTimer > 35) {
+                    col.token = CODE_TOKENS[Math.floor(Math.random() * CODE_TOKENS.length)];
+                    col.changeTimer = 0;
+                }
+
+                // Плавное затухание у верхнего и нижнего краев экрана
+                const edgeFade = Math.min(col.y / 120, (height - col.y) / 120, 1);
+                const alpha = Math.max(0, col.opacity * edgeFade);
+
+                // Подсветка кода рядом с курсором
+                let highlightBoost = 0;
+                if (pointer.active) {
+                    const dist = Math.hypot(col.x - pointer.x, col.y - pointer.y);
+                    if (dist < 140) {
+                        highlightBoost = (1 - dist / 140) * 0.45;
+                    }
+                }
+
+                ctx.fillStyle = highlightBoost > 0.1 
+                    ? `rgba(255, 45, 85, ${alpha + highlightBoost})`
+                    : `rgba(190, 15, 45, ${alpha})`;
+
+                ctx.fillText(col.token, col.x, col.y);
+
+                if (col.y > height + 30) {
+                    col.y = -20 - Math.random() * 100;
+                    col.token = CODE_TOKENS[Math.floor(Math.random() * CODE_TOKENS.length)];
+                }
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Перемешивание массива комплиментов (алгоритм Фишера-Йейтса)
+         */
+        function refillComplimentsQueue() {
+            availableIndices = Array.from({ length: COMPLIMENTS.length }, (_, i) => i);
+            for (let i = availableIndices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
+            }
+        }
+        refillComplimentsQueue();
+
+        /**
+         * Настройка Canvas под Retina-дисплеи
+         */
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            initMatrix();
+            initDepthDust();
+        }
+
+        /**
+         * Отрисовка векторного сердца с центром в (0, 0)
+         */
+        function traceHeartPath(ctx, size) {
+            const s = size / 30;
+            ctx.beginPath();
+            ctx.moveTo(0, -8 * s);
+            ctx.bezierCurveTo(-12 * s, -22 * s, -30 * s, -6 * s, 0, 18 * s);
+            ctx.bezierCurveTo(30 * s, -6 * s, 12 * s, -22 * s, 0, -8 * s);
+            ctx.closePath();
+        }
+
+        // Оттенки неоново-красного для сердечек
+        const RED_VARIANTS = [
+            { core: '#ff003c', highlight: '#ff8fa3', dark: '#590016', glow: 'rgba(255, 0, 60, 0.8)' },
+            { core: '#ff1e42', highlight: '#ffb3c1', dark: '#6e001b', glow: 'rgba(255, 30, 66, 0.75)' },
+            { core: '#e60032', highlight: '#ff758f', dark: '#4a0010', glow: 'rgba(230, 0, 50, 0.75)' },
+            { core: '#ff2a55', highlight: '#ffc2d1', dark: '#75001d', glow: 'rgba(255, 42, 85, 0.8)' }
+        ];
+
+        let hearts = [];
+        let particles = [];
+
+        /**
+         * Класс падающего неоново-красного кибер-сердца
+         */
+        class CyberHeart {
+            constructor(initialY = null) {
+                this.spawn(initialY);
+            }
+
+            spawn(initialY = null) {
+                this.trail = [];
+                this.depth = Math.random() * 0.65 + 0.5;
+                const isMobile = width < 640;
+                const baseSize = isMobile ? 21 : 25;
+                this.size = baseSize * this.depth + Math.random() * 7;
+
+                this.x = Math.random() * (width - this.size * 2.5) + this.size * 1.25;
+                this.y = initialY !== null ? initialY : -this.size * 2 - Math.random() * 140;
+
+                this.vy = (0.85 + Math.random() * 1.05) * this.depth;
+                this.vx = 0;
+
+                this.swaySpeed = 0.015 + Math.random() * 0.02;
+                this.swayAngle = Math.random() * Math.PI * 2;
+                this.rotation = 0;
+                this.palette = RED_VARIANTS[Math.floor(Math.random() * RED_VARIANTS.length)];
+                this.pulsePhase = Math.random() * Math.PI * 2;
+                // Некоторые сердечки имеют декоративные скобки < > по бокам
+                this.hasCodeBrackets = Math.random() > 0.55;
+            }
+
+            update() {
+                this.swayAngle += this.swaySpeed;
+                this.pulsePhase += 0.05;
+                this.trail.push({ x: this.x, y: this.y, life: 1 });
+                if (this.trail.length > 12) this.trail.shift();
+                for (const point of this.trail) point.life *= 0.88;
+
+                // Замедление при наведении курсора для легкого прицеливания
+                const isHovered = (hoveredHeart === this);
+                const speedMultiplier = isHovered ? 0.35 : 1;
+
+                this.y += this.vy * speedMultiplier;
+                this.x += (Math.sin(this.swayAngle) * 0.55) * speedMultiplier + this.vx;
+                this.vx *= 0.9;
+
+                this.rotation = Math.sin(this.swayAngle) * 0.18;
+
+                if (this.y > height + this.size * 2.5) {
+                    this.spawn();
+                }
+
+                if (this.x < this.size * 1.2) this.x = this.size * 1.2;
+                if (this.x > width - this.size * 1.2) this.x = width - this.size * 1.2;
+            }
+
+            draw(ctx) {
+                const isHovered = (hoveredHeart === this);
+                const pulse = 1 + Math.sin(this.pulsePhase) * 0.04 + (isHovered ? 0.16 : 0);
+                const drawSize = this.size * pulse;
+
+                ctx.save();
+                if (this.trail.length > 2) {
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.lineWidth = Math.max(0.6, drawSize * 0.035);
+                    ctx.strokeStyle = this.palette.glow;
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Если курсор наведен — рисуем кибер-прицел (targeting reticle) вокруг сердечка
+                if (isHovered) {
+                    ctx.save();
+                    const boxSize = drawSize * 1.45;
+                    const corner = 7;
+                    ctx.strokeStyle = '#ff1e42';
+                    ctx.lineWidth = 1.8;
+                    ctx.shadowColor = '#ff003c';
+                    ctx.shadowBlur = 12;
+
+                    // 4 уголка прицела
+                    ctx.beginPath();
+                    // Левый верхний
+                    ctx.moveTo(-boxSize, -boxSize + corner);
+                    ctx.lineTo(-boxSize, -boxSize);
+                    ctx.lineTo(-boxSize + corner, -boxSize);
+                    // Правый верхний
+                    ctx.moveTo(boxSize - corner, -boxSize);
+                    ctx.lineTo(boxSize, -boxSize);
+                    ctx.lineTo(boxSize, -boxSize + corner);
+                    // Правый нижний
+                    ctx.moveTo(boxSize, boxSize - corner);
+                    ctx.lineTo(boxSize, boxSize);
+                    ctx.lineTo(boxSize - corner, boxSize);
+                    // Левый нижний
+                    ctx.moveTo(-boxSize + corner, boxSize);
+                    ctx.lineTo(-boxSize, boxSize);
+                    ctx.lineTo(-boxSize, boxSize - corner);
+                    ctx.stroke();
+
+                    // Подпись [CLICK] над прицелом
+                    ctx.font = '700 10px "JetBrains Mono", monospace';
+                    ctx.fillStyle = '#ff8fa3';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('TARGET_LOCKED', 0, -boxSize - 6);
+                    ctx.restore();
+                }
+
+                ctx.rotate(this.rotation);
+
+                // Декоративные скобки программиста < ♥ >
+                if (this.hasCodeBrackets && this.depth > 0.7) {
+                    ctx.save();
+                    ctx.font = `700 ${Math.round(drawSize * 0.75)}px "JetBrains Mono", monospace`;
+                    ctx.fillStyle = 'rgba(255, 30, 66, 0.55)';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('<', -drawSize * 1.15, 0);
+                    ctx.fillText('>', drawSize * 1.15, 0);
+                    ctx.restore();
+                }
+
+                // Неоновое красное свечение
+                ctx.shadowColor = this.palette.glow;
+                ctx.shadowBlur = isHovered ? 26 : 15 * this.depth;
+
+                // Объемный градиент от светло-розового блика к глубокому рубиново-черному
+                const grad = ctx.createRadialGradient(
+                    -drawSize * 0.25, -drawSize * 0.3, drawSize * 0.05,
+                    0, 0, drawSize * 0.95
+                );
+                grad.addColorStop(0, this.palette.highlight);
+                grad.addColorStop(0.4, this.palette.core);
+                grad.addColorStop(1, this.palette.dark);
+
+                ctx.fillStyle = grad;
+                traceHeartPath(ctx, drawSize);
+                ctx.fill();
+
+                // Четкий неоновый контур
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = isHovered ? '#ffffff' : 'rgba(255, 120, 145, 0.45)';
+                ctx.lineWidth = isHovered ? 1.5 : 1;
+                traceHeartPath(ctx, drawSize);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            isHit(px, py) {
+                const dx = px - this.x;
+                const dy = py - this.y;
+                // Комфортный радиус попадания для пальца на мобильных устройствах
+                const hitRadius = Math.max(this.size * 1.25, 34);
+                return (dx * dx + dy * dy) <= (hitRadius * hitRadius);
+            }
+        }
+
+        /**
+         * Класс частиц взрыва (двоичный код 0/1, скобки и мини-сердца)
+         */
+        class CodeParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 7 + 2.2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 1.5;
+                this.gravity = 0.14;
+                this.drag = 0.95;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.022 + 0.015;
+                this.symbols = ['1', '0', '♥', '{', '}', '1', '0', ';'];
+                this.symbol = this.symbols[Math.floor(Math.random() * this.symbols.length)];
+                this.fontSize = Math.floor(Math.random() * 8 + 11);
+                this.color = Math.random() > 0.25 ? '#ff003c' : '#ffccd5';
+            }
+
+            update() {
+                this.vx *= this.drag;
+                this.vy *= this.drag;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.font = `700 ${this.fontSize}px "JetBrains Mono", monospace`;
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = '#ff003c';
+                ctx.shadowBlur = 8;
+                ctx.textAlign = 'center';
+                ctx.fillText(this.symbol, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function spawnCodeExplosion(x, y, count = 28) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new CodeParticle(x, y));
+            }
+        }
+
+        function spawnShockRing(x, y) {
+            shockRings.push({
+                x,
+                y,
+                radius: 8,
+                alpha: 0.95,
+                speed: 8
+            });
+        }
+
+        function drawShockRings() {
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = shockRings.length - 1; i >= 0; i--) {
+                const ring = shockRings[i];
+                ring.radius += ring.speed;
+                ring.speed *= 0.96;
+                ring.alpha -= 0.035;
+
+                ctx.globalAlpha = Math.max(0, ring.alpha);
+                ctx.strokeStyle = '#ff1e42';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#ff003c';
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                if (ring.alpha <= 0) shockRings.splice(i, 1);
+            }
+            ctx.restore();
+        }
+
+        /**
+         * Инициализация всей сцены
+         */
+        function initScene() {
+            resizeCanvas();
+            initDepthDust();
+            hearts = [];
+            const heartCount = width < 640 ? 22 : 34;
+            for (let i = 0; i < heartCount; i++) {
+                hearts.push(new CyberHeart(Math.random() * height));
+            }
+            hearts.sort((a, b) => a.depth - b.depth);
+        }
+
+        /**
+         * Показ нового комплимента в окне терминала
+         */
+        function showNextCompliment() {
+            if (availableIndices.length === 0) {
+                refillComplimentsQueue();
+            }
+
+            const idx = availableIndices.pop();
+            openedCount++;
+
+            const displayProgress = Math.min(openedCount, COMPLIMENTS.length);
+            openedCountEl.textContent = displayProgress;
+            counterBadge.classList.add('scale-110');
+            setTimeout(() => counterBadge.classList.remove('scale-110'), 220);
+
+            const paddedNum = String(idx + 1).padStart(2, '0');
+            terminalTabTitle.textContent = `compliment_${paddedNum}.exe — bash`;
+            complimentTextEl.textContent = COMPLIMENTS[idx];
+
+            if (displayProgress === COMPLIMENTS.length && availableIndices.length === 0) {
+                continueBtn.innerHTML = '<span>Все 30 комплиментов открыты! Повторить</span> <span>♥</span>';
+            } else {
+                continueBtn.innerHTML = '<span>Поймать следующее сердце</span> <span class="text-base">♥</span>';
+            }
+
+            isModalOpen = true;
+            hoveredHeart = null;
+            canvas.style.cursor = 'default';
+            modal.classList.add('active');
+        }
+
+        function closeComplimentModal() {
+            isModalOpen = false;
+            modal.classList.remove('active');
+        }
+
+        /**
+         * Проверка наведения курсора на сердечки
+         */
+        function updateHoverState(clientX, clientY) {
+            if (isModalOpen) {
+                hoveredHeart = null;
+                canvas.style.cursor = 'default';
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            let found = null;
+            for (let i = hearts.length - 1; i >= 0; i--) {
+                if (hearts[i].isHit(x, y)) {
+                    found = hearts[i];
+                    break;
+                }
+            }
+
+            hoveredHeart = found;
+            canvas.style.cursor = found ? 'pointer' : 'crosshair';
+        }
+
+        /**
+         * Обработка клика/тапа по сердечку
+         */
+        function handleCanvasClick(clientX, clientY) {
+            if (isModalOpen) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            for (let i = hearts.length - 1; i >= 0; i--) {
+                const heart = hearts[i];
+                if (heart.isHit(x, y)) {
+                    spawnCodeExplosion(heart.x, heart.y, 32);
+                    spawnShockRing(heart.x, heart.y);
+                    heart.spawn();
+                    hearts.sort((a, b) => a.depth - b.depth);
+
+                    setTimeout(() => {
+                        showNextCompliment();
+                    }, 160);
+                    return;
+                }
+            }
+
+            // Небольшой всплеск нулей и единиц при клике в пустую область
+            spawnCodeExplosion(x, y, 7);
+        }
+
+        // События окна, мыши и сенсорного ввода
+        window.addEventListener('resize', resizeCanvas);
+
+        canvas.addEventListener('mousemove', (e) => {
+            pointer.x = e.clientX;
+            pointer.y = e.clientY;
+            pointer.active = true;
+            updateHoverState(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            pointer.active = false;
+            hoveredHeart = null;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            handleCanvasClick(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                const touch = e.touches[0];
+                pointer.x = touch.clientX;
+                pointer.y = touch.clientY;
+                pointer.active = true;
+                handleCanvasClick(touch.clientX, touch.clientY);
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                pointer.x = e.touches[0].clientX;
+                pointer.y = e.touches[0].clientY;
+                pointer.active = true;
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', () => {
+            pointer.active = false;
+        });
+
+        closeModalBtn.addEventListener('click', closeComplimentModal);
+        continueBtn.addEventListener('click', closeComplimentModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeComplimentModal();
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isModalOpen) closeComplimentModal();
+        });
+
+        function updateFishEyeTargets() {
+            if (!pointer.active || isModalOpen) {
+                document.querySelectorAll('.fish-eye-target').forEach((target) => {
+                    target.style.setProperty('--lens-x', '0px');
+                    target.style.setProperty('--lens-y', '0px');
+                    target.style.setProperty('--lens-scale', '1');
+                    target.style.setProperty('--lens-brightness', '1');
+                    target.style.setProperty('--lens-hue', '0deg');
+                });
+                return;
+            }
+
+            document.querySelectorAll('.fish-eye-target').forEach((target) => {
+                const rect = target.getBoundingClientRect();
+                const cx = rect.left + rect.width * 0.5;
+                const cy = rect.top + rect.height * 0.5;
+                const dx = pointer.x - cx;
+                const dy = pointer.y - cy;
+                const distance = Math.hypot(dx, dy);
+                const radius = Math.max(150, Math.min(rect.width, rect.height) * 3);
+                const strength = Math.max(0, 1 - distance / radius);
+
+                if (strength > 0) {
+                    const eased = strength * strength;
+                    const offsetX = (dx / Math.max(distance, 1)) * eased * 11;
+                    const offsetY = (dy / Math.max(distance, 1)) * eased * 11;
+                    target.style.setProperty('--lens-x', `${offsetX.toFixed(2)}px`);
+                    target.style.setProperty('--lens-y', `${offsetY.toFixed(2)}px`);
+                    target.style.setProperty('--lens-scale', (1 + eased * 0.075).toFixed(3));
+                    target.style.setProperty('--lens-brightness', (1 + eased * 0.38).toFixed(3));
+                    target.style.setProperty('--lens-hue', `${(Math.sin(strength * Math.PI) * 12).toFixed(2)}deg`);
+                } else {
+                    target.style.setProperty('--lens-x', '0px');
+                    target.style.setProperty('--lens-y', '0px');
+                    target.style.setProperty('--lens-scale', '1');
+                    target.style.setProperty('--lens-brightness', '1');
+                    target.style.setProperty('--lens-hue', '0deg');
+                }
+            });
+        }
+
+        /**
+         * Главный цикл рендеринга
+         */
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            const targetTiltX = pointer.active ? (pointer.x / width - 0.5) * 2 : 0;
+            const targetTiltY = pointer.active ? (pointer.y / height - 0.5) * 2 : 0;
+            pointer.tiltX += (targetTiltX - pointer.tiltX) * 0.055;
+            pointer.tiltY += (targetTiltY - pointer.tiltY) * 0.055;
+            document.documentElement.style.setProperty('--depth-x-back', `${(-pointer.tiltX * 10).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--depth-y-back', `${(-pointer.tiltY * 8).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--grid-rotate-x', `${(68 - pointer.tiltY * 3).toFixed(2)}deg`);
+            document.documentElement.style.setProperty('--grid-rotate-y', `${(pointer.tiltX * 4).toFixed(2)}deg`);
+            document.documentElement.style.setProperty('--tilt-x-aura', `${(-pointer.tiltX * 8).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-y-aura', `${(-pointer.tiltY * 6).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-x-title', `${(pointer.tiltX * 10).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-y-title', `${(pointer.tiltY * 7).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-x-label', `${(pointer.tiltX * 4).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-y-label', `${(pointer.tiltY * 3).toFixed(2)}px`);
+            document.documentElement.style.setProperty('--tilt-rotate-x', `${(-pointer.tiltY * 2).toFixed(2)}deg`);
+            document.documentElement.style.setProperty('--tilt-rotate-y', `${(pointer.tiltX * 3).toFixed(2)}deg`);
+
+            updateFishEyeTargets();
+
+            // 1. Фоновая матрица программистского кода
+            updateAndDrawMatrix();
+
+            // Асимметричные частицы глубины над матрицей
+            drawDepthDust();
+
+            // 2. Мягкое красное свечение за курсором
+            if (pointer.active && !isModalOpen) {
+                const aura = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, 130);
+                aura.addColorStop(0, 'rgba(255, 0, 60, 0.14)');
+                aura.addColorStop(1, 'rgba(255, 0, 60, 0)');
+                ctx.fillStyle = aura;
+                ctx.beginPath();
+                ctx.arc(pointer.x, pointer.y, 130, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 3. Падающие красные сердечки
+            for (let i = 0; i < hearts.length; i++) {
+                hearts[i].update();
+                hearts[i].draw(ctx);
+            }
+
+            // Расширяющаяся волна энергии при захвате сердца
+            drawShockRings();
+
+            // 4. Частицы кода при взрыве сердец
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw(ctx);
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        window.onload = function () {
+            initScene();
+            animate();
+        };
+    </script>
+</body>
+</html>
